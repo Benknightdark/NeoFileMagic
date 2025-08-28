@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+## All response must be in 「正體中文」
+
 ## Project Structure & Module Organization
 - Root solution: `NeoFileMagic.sln`.
 - Library: `NeoFileMagic/` contains `NeoFileMagic.csproj` (net9.0, implicit usings, nullable) and source (currently `Class1.cs` with the ODS reader types).
@@ -38,3 +40,15 @@ var doc = Ods.Load("sample.ods");
 var cell = doc.Sheets[0].GetCell(0, 0);
 ```
 
+## Git Commit 工作流程
+
+**觸發指令：** `git commit`
+
+當使用者輸入 `git commit` 時，自動執行以下步驟：
+
+1.  執行 `git diff HEAD` 分析變更。
+2.  根據變更內容，產生一個結構良好、使用正體中文的 Conventional Commits 訊息。
+3.  將變更的檔案加入暫存區。
+4.  將 commit 訊息寫入暫存檔。
+5.  使用 `git commit -F <temp_file>` 執行 commit。
+6.  刪除暫存檔。

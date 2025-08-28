@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Linq;
-using NeoFileMagic;
+using NeoFileMagic.FileReader.Ods;
 
 
 class Program
@@ -16,7 +16,7 @@ class Program
         }
 
         var row0 = sheet.Rows[0];
-        var values = row0.Cells.Select(c => Ods.OneLine(c, TextHandling.CollapseToSpace)).ToArray();
+        var values = row0.Cells.Select(c => c).ToArray();
         for (int i = 0; i < values.Length; i++)
         {
             Console.WriteLine($"[{i}] {values[i]}");
