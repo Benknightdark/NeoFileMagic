@@ -1,6 +1,6 @@
 # NeoFileMagic
 
-![封面圖](images/cover.png)
+![封面圖](https://raw.githubusercontent.com/Benknightdark/NeoFileMagic/refs/heads/master/images/cover.png)
 
 提供「安全、輕量、可控資源上限」的多種檔案格式讀取器，
 以支援後續應用快速擷取結構化資料（目前先提供 ODS，後續可擴充其他格式）。
