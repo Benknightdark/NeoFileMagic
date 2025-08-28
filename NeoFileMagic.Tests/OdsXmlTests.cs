@@ -88,6 +88,16 @@ public sealed class OdsXmlTests
     }
 
     [Fact]
+    public void SampleOds_FromRepo_Loads_IfPresent()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sample.ods");
+        if (!File.Exists(path)) return; // CI 或開發環境未附帶檔案時，直接返回不失敗
+        var doc = Ods.Load(path);
+        Assert.NotNull(doc);
+        Assert.NotNull(doc.Sheets);
+    }
+
+    [Fact]
     public void Dataset_Url_File_Exists_And_Valid()
     {
         var urlFile = Path.Combine(AppContext.BaseDirectory, "Data", "DatasetUrl.txt");

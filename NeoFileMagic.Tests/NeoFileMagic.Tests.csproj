@@ -22,5 +22,6 @@
 
   <ItemGroup>
     <None Include="Data\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="sample.ods" CopyToOutputDirectory="PreserveNewest" Condition="Exists('sample.ods')" />
   </ItemGroup>
 </Project>
