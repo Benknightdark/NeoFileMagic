@@ -5,8 +5,17 @@ using System.Linq;
 using System.Text;
 using NeoFileMagic.FileReader.Ods;
 
+/// <summary>
+/// ODS 讀取與行為的核心測試。
+/// 涵蓋基本型別解析、單行文字處理、加密偵測、
+/// 檔案載入（暫存與 repo 範例檔）以及外部資料集 URL 檢查與可選下載。
+/// </summary>
 public sealed class OdsXmlTests
 {
+    /// <summary>
+    /// 驗證 content.xml 解析基本型別：字串（含 text:s 連續空白、段落換行）、
+    /// 浮點數、布林、日期（ISO-8601）與時間（TimeSpan），並測試 OneLine 各模式輸出。
+    /// </summary>
     [Fact]
     public void OdsXml_ParseContent_BasicTypes_ReturnsValues()
     {
@@ -60,6 +69,10 @@ public sealed class OdsXmlTests
         Assert.Equal(TimeSpan.Parse("01:02:03").ToString(), c4.ToString());
     }
 
+    /// <summary>
+    /// 以記憶體組裝最小 ODS，寫到暫存路徑後用檔案 API 載入，
+    /// 確認基本檔案路徑讀取流程（Zip + content.xml）。
+    /// </summary>
     [Fact]
     public void SampleOds_File_Loads()
     {
@@ -87,6 +100,10 @@ public sealed class OdsXmlTests
         Assert.Equal("Hi", doc.Sheets[0].GetCell(0, 0).Text);
     }
 
+    /// <summary>
+    /// 若輸出目錄存在 repo 內提供的 sample.ods，則嘗試載入並確認結構；
+    /// 若不存在（如 CI 環境），則不當作失敗以避免對環境產生耦合。
+    /// </summary>
     [Fact]
     public void SampleOds_FromRepo_Loads_IfPresent()
     {
@@ -97,6 +114,10 @@ public sealed class OdsXmlTests
         Assert.NotNull(doc.Sheets);
     }
 
+    /// <summary>
+    /// 驗證資料集連結檔存在且內容為有效 URL，並包含指定 rId。
+    /// 僅檢查檔案與字串格式，不進行網路下載。
+    /// </summary>
     [Fact]
     public void Dataset_Url_File_Exists_And_Valid()
     {
@@ -124,6 +145,10 @@ public sealed class OdsXmlTests
 
     
 
+    /// <summary>
+    /// 檢驗 manifest 中的加密標記會在預設下拋出 NotSupportedException；
+    /// 若配置 ThrowOnEncrypted=false，則允許載入但不輸出任何工作表。
+    /// </summary>
     [Fact]
     public void Ods_Load_Encrypted_ThrowsByDefault_AllowsWhenDisabled()
     {
@@ -149,6 +174,9 @@ public sealed class OdsXmlTests
         Assert.Empty(doc.Sheets);
     }
 
+    /// <summary>
+    /// 驗證單行文字輸出模式的行為：Escape、CollapseToSpace、FirstParagraph。
+    /// </summary>
     [Fact]
     public void Ods_OneLine_Modes_Work()
     {
@@ -159,6 +187,13 @@ public sealed class OdsXmlTests
         Assert.Equal("A", Ods.OneLine(cell, TextHandling.FirstParagraph));
     }
 
+    /// <summary>
+    /// 以最小結構在記憶體組裝 ODS：建立 Zip 並寫入 content.xml，
+    /// 可選擇加入 META-INF/manifest.xml。
+    /// </summary>
+    /// <param name="contentXml">content.xml 內容字串。</param>
+    /// <param name="manifestXml">manifest.xml 內容字串（可為 null 表示不加入）。</param>
+    /// <returns>可供 Ods.Load 使用的 ODS Zip 記憶體串流。</returns>
     private static MemoryStream BuildOds(string contentXml, string? manifestXml = null)
     {
         var ms = new MemoryStream();
