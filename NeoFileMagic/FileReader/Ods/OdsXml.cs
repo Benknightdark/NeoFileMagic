@@ -9,6 +9,9 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 
+/// <summary>
+/// ODS XML 解析邏輯的內部實作。
+/// </summary>
 internal static class OdsXml
 {
     // 命名空間（ODF 1.2 常見）
@@ -17,6 +20,11 @@ internal static class OdsXml
     private const string NsText = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
     private const string NsManifest = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
 
+    /// <summary>
+    /// 檢測 ODS manifest 是否包含加密資訊。
+    /// </summary>
+    /// <param name="manifestXml">manifest.xml 的資料流。</param>
+    /// <returns>若偵測到 <c>manifest:encryption-data</c> 則為 true。</returns>
     internal static bool HasEncryption(Stream manifestXml)
     {
         var settings = SecureXmlReaderSettings();
@@ -29,6 +37,13 @@ internal static class OdsXml
         return false;
     }
 
+    /// <summary>
+    /// 解析 content.xml 並建構工作表集合。
+    /// </summary>
+    /// <param name="contentXml">content.xml 的資料流。</param>
+    /// <param name="options">讀取選項與資源上限。</param>
+    /// <returns>解析後的工作表清單。</returns>
+    /// <exception cref="InvalidDataException">當 XML 結構缺少必要節點或超出上限。</exception>
     internal static List<OdsSheet> ParseContent(Stream contentXml, OdsReaderOptions options)
     {
         var settings = SecureXmlReaderSettings();
@@ -61,6 +76,9 @@ internal static class OdsXml
         return sheets;
     }
 
+    /// <summary>
+    /// 讀取 <c>table:table</c> 節點並解析為 <see cref="OdsSheet"/>。
+    /// </summary>
     private static OdsSheet ReadTable(XmlReader xr, OdsReaderOptions options)
     {
         // 目前位於 <table:table>
@@ -113,6 +131,9 @@ internal static class OdsXml
         return new OdsSheet(name, rows, options.MaxColumnsPerRow);
     }
 
+    /// <summary>
+    /// 讀取 <c>table:table-row</c> 節點並解析為 <see cref="OdsRow"/>。
+    /// </summary>
     private static OdsRow ReadRow(XmlReader xr, OdsReaderOptions options)
     {
         // 目前位於 <table:table-row>
@@ -158,6 +179,9 @@ internal static class OdsXml
         return new OdsRow(new OdsCellList(segments, options.MaxColumnsPerRow, options.TrimTrailingEmptyCells));
     }
 
+    /// <summary>
+    /// 讀取 <c>table:table-cell</c> 或相關節點為 <see cref="OdsCell"/>。
+    /// </summary>
     private static OdsCell ReadCell(XmlReader xr, OdsReaderOptions options)
     {
         // 目前位於 <table:table-cell>
@@ -233,6 +257,9 @@ internal static class OdsXml
         return cell;
     }
 
+    /// <summary>
+    /// 讀取文字型儲存格的段落內容，處理 <c>text:p</c> 與 <c>text:s</c>。
+    /// </summary>
     private static string ReadCellText(XmlReader xr, OdsReaderOptions options)
     {
         if (xr.IsEmptyElement) return string.Empty;
@@ -300,6 +327,9 @@ internal static class OdsXml
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 建立安全的 <see cref="XmlReaderSettings"/>（禁止 DTD、忽略無關節點、無解析器）。
+    /// </summary>
     private static XmlReaderSettings SecureXmlReaderSettings() => new()
     {
         DtdProcessing = DtdProcessing.Prohibit,
@@ -309,6 +339,9 @@ internal static class OdsXml
         XmlResolver = null
     };
 
+    /// <summary>
+    /// 游標前進至指定元素（依區域名稱與命名空間匹配）。
+    /// </summary>
     private static bool MoveToElement(XmlReader xr, string localName, string ns)
     {
         while (xr.Read())
@@ -320,6 +353,9 @@ internal static class OdsXml
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>
+    /// 取得整數屬性並轉型，失敗回傳 null。
+    /// </summary>
     private static int? GetIntAttr(XmlReader xr, string local, string ns)
     {
         var s = xr.GetAttribute(local, ns);
@@ -329,6 +365,9 @@ internal static class OdsXml
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>
+    /// 取得浮點屬性並轉型，失敗回傳 null。
+    /// </summary>
     private static double? GetDoubleAttr(XmlReader xr, string local, string ns)
     {
         var s = xr.GetAttribute(local, ns);
@@ -339,6 +378,9 @@ internal static class OdsXml
 
     /// <summary>
     /// 判斷一列是否「有效內容為空」。空白字串與 Empty 型別視為空；其他型別只要有值就視為非空。
+    /// </summary>
+    /// <summary>
+    /// 判斷一列是否有效內容為空（空白字串與 Empty 視為空）。
     /// </summary>
     private static bool IsRowEffectivelyEmpty(in OdsRow row)
     {
@@ -353,6 +395,9 @@ internal static class OdsXml
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>
+    /// 判斷儲存格是否可視為空白（型別為 Empty 或空字串）。
+    /// </summary>
     private static bool IsCellEffectivelyEmpty(in OdsCell c)
         => c.Type switch
         {
@@ -363,6 +408,9 @@ internal static class OdsXml
 
     // ===== RLE（Run-Length Encoding）欄位容器 =====
 
+    /// <summary>
+    /// 代表一段重複的儲存格（RLE 區段）。
+    /// </summary>
     private readonly struct OdsCellSegment
     {
         public readonly OdsCell Cell;
@@ -374,11 +422,17 @@ internal static class OdsXml
         }
     }
 
+    /// <summary>
+    /// 將區段資料以只讀清單形式提供索引與列舉，避免展開造成記憶體膨脹。
+    /// </summary>
     private sealed class OdsCellList : IReadOnlyList<OdsCell>
     {
         private readonly OdsCellSegment[] _segments;
         private readonly int _count; // 展開後的欄位數（已應用上限與尾端修剪）
 
+        /// <summary>
+        /// 以區段清單建構欄位清單，會依上限裁切並可選擇修剪尾端空欄。
+        /// </summary>
         public OdsCellList(List<OdsCellSegment> segments, int maxColumns, bool trimTrailingEmpty)
         {
             if (segments.Count == 0)
@@ -417,6 +471,9 @@ internal static class OdsXml
 
         public int Count => _count;
 
+        /// <summary>
+        /// 以索引取得欄位（依序走訪區段計算）。
+        /// </summary>
         public OdsCell this[int index]
         {
             get
@@ -437,6 +494,9 @@ internal static class OdsXml
         public IEnumerator<OdsCell> GetEnumerator() => new Enumerator(_segments, _count);
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+        /// <summary>
+        /// 走訪列舉器，逐一輸出展開後的儲存格。
+        /// </summary>
         private sealed class Enumerator : IEnumerator<OdsCell>
         {
             private readonly OdsCellSegment[] _segs;
@@ -446,6 +506,9 @@ internal static class OdsXml
             private int _segOffset;
             private OdsCell _current;
 
+            /// <summary>
+            /// 建立列舉器。
+            /// </summary>
             public Enumerator(OdsCellSegment[] segs, int count)
             {
                 _segs = segs;
