@@ -7,6 +7,7 @@ class Program
 {
     static async Task Main()
     {
+        // 同步讀取本地 ODS
         var doc = Ods.Load("./sample.ods");
         var sheet = doc.Sheets[0];
         if (sheet.RowCount == 0)
