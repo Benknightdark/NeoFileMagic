@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample", "Sample\Sample.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFileMagic", "NeoFileMagic\NeoFileMagic.csproj", "{4EC4DF38-F590-492C-B47C-B4C216C7114C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFileMagic.Tests", "NeoFileMagic.Tests\NeoFileMagic.Tests.csproj", "{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{4EC4DF38-F590-492C-B47C-B4C216C7114C}.Release|x64.Build.0 = Release|Any CPU
 		{4EC4DF38-F590-492C-B47C-B4C216C7114C}.Release|x86.ActiveCfg = Release|Any CPU
 		{4EC4DF38-F590-492C-B47C-B4C216C7114C}.Release|x86.Build.0 = Release|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Debug|x64.Build.0 = Debug|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Debug|x86.Build.0 = Debug|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Release|x64.ActiveCfg = Release|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Release|x64.Build.0 = Release|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Release|x86.ActiveCfg = Release|Any CPU
+		{51BB3EBA-6881-4BD1-95EC-FA8FB70C8CC3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
