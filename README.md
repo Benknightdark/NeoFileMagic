@@ -3,7 +3,7 @@
 ![封面圖](https://raw.githubusercontent.com/Benknightdark/NeoFileMagic/refs/heads/master/images/cover.png)
 
 提供「安全、輕量、可控資源上限」的多種檔案格式讀取器，
-以支援後續應用快速擷取結構化資料（目前先提供 ODS，後續可擴充其他格式）。
+以支援後續應用快速擷取結構化資料（目前先提供 ODS，後續會陸續擴充其他格式）。
 
 ## 專案一覽（3 個專案）
 - NeoFileMagic（類別庫）: 核心檔案讀取框架與公開 API（目前含 ODS 模組）。
