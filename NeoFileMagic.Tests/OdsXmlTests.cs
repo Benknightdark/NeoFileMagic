@@ -60,6 +60,58 @@ public sealed class OdsXmlTests
         Assert.Equal(TimeSpan.Parse("01:02:03").ToString(), c4.ToString());
     }
 
+    [Fact]
+    public void SampleOds_File_Loads()
+    {
+        var content = """
+        <office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+          <office:body>
+            <office:spreadsheet>
+              <table:table table:name="SheetA">
+                <table:table-row>
+                  <table:table-cell office:value-type="string"><text:p>Hi</text:p></table:table-cell>
+                </table:table-row>
+              </table:table>
+            </office:spreadsheet>
+          </office:body>
+        </office:document-content>
+        """;
+
+        using var odsStream = BuildOds(content);
+        var tmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".ods");
+        using (var fs = File.Create(tmp)) odsStream.CopyTo(fs);
+
+        var doc = Ods.Load(tmp);
+        Assert.Single(doc.Sheets);
+        Assert.Equal("SheetA", doc.Sheets[0].Name);
+        Assert.Equal("Hi", doc.Sheets[0].GetCell(0, 0).Text);
+    }
+
+    [Fact]
+    public void Dataset_Url_File_Exists_And_Valid()
+    {
+        var urlFile = Path.Combine(AppContext.BaseDirectory, "Data", "DatasetUrl.txt");
+        Assert.True(File.Exists(urlFile));
+        var url = File.ReadAllText(urlFile).Trim();
+        Assert.StartsWith("http", url, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("A21030000I-D20003-004", url);
+    }
+
+    [Fact(Skip = "需要網路才可下載驗證，預設略過。設定環境變數 NFM_ALLOW_NET=1 後改為手動啟用。")]
+    public async System.Threading.Tasks.Task Dataset_Url_Download_Smoke()
+    {
+        if (Environment.GetEnvironmentVariable("NFM_ALLOW_NET") != "1")
+            return; // 安全防護：即使移除 Skip 也不下載
+
+        var urlFile = Path.Combine(AppContext.BaseDirectory, "Data", "DatasetUrl.txt");
+        var url = File.ReadAllText(urlFile).Trim();
+        using var http = new System.Net.Http.HttpClient();
+        var resp = await http.GetAsync(url);
+        resp.EnsureSuccessStatusCode();
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.False(string.IsNullOrWhiteSpace(json));
+    }
+
     
 
     [Fact]

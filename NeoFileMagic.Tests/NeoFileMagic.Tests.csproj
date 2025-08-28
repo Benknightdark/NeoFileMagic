@@ -19,5 +19,8 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-</Project>
 
+  <ItemGroup>
+    <None Include="Data\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
