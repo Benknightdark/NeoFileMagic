@@ -1,9 +1,13 @@
 ﻿namespace NeoFileMagic.FileReader.Ods;
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 /// <summary>
 /// 讀取 ODS 檔案的進入點。
@@ -141,8 +145,316 @@ public static class Ods
             await netStream.CopyToAsync(ms, 81920, cancellationToken).ConfigureAwait(false);
             ms.Position = 0;
             return Load(ms, options);
+        }
     }
+
+
+
+    /// <summary>
+    /// 嚴格依表頭與 [JsonPropertyName] 對應，將工作表轉型為 T；
+    /// 表頭缺漏、欄位順序不同或任一列資料格式不符時，拋出具體例外。
+    /// </summary>
+    /// <param name="sheet">來源工作表。</param>
+    /// <param name="headerRowIndex">表頭列索引（預設 0）。</param>
+    /// <param name="dataStartRowIndex">資料起始列索引（預設 1）。</param>
+    /// <param name="caseInsensitiveHeaderMatch">表頭比對是否大小寫不敏感（預設 true）。</param>
+    /// <param name="headerNormalizer">表頭正規化（預設 Trim）。</param>
+    /// <param name="cellString">文字正規化函式（預設：\r\n/\r → \n，換行/Tab 摺疊為單一空白，最後 Trim）。</param>
+    /// <param name="stopAtFirstAllEmptyRow">遇到第一個全空列即停止（預設 true）。</param>
+    /// <param name="enforceHeaderOrder">
+    /// 是否檢查欄位順序（預設 true）。
+    /// 規則：以模型屬性順序（支援 [JsonPropertyOrder]；否則以宣告順序近似）作為期望順序，
+    /// 實際表頭中對應之子序列若與期望順序不同則拋 
+    /// <see cref="OdsHeaderOrderMismatchException"/>。
+    /// </param>
+    public static List<T> DeserializeSheetOrThrow<T>(
+        OdsSheet sheet,
+        int headerRowIndex = 0,
+        int dataStartRowIndex = 1,
+        bool caseInsensitiveHeaderMatch = true,
+        Func<string, string>? headerNormalizer = null,
+        Func<OdsCell, string>? cellString = null,
+        bool stopAtFirstAllEmptyRow = true,
+        bool enforceHeaderOrder = true
+    )
+    {
+        if (sheet is null) throw new ArgumentNullException(nameof(sheet));
+        if (headerRowIndex < 0 || headerRowIndex >= sheet.RowCount)
+            throw new ArgumentOutOfRangeException(nameof(headerRowIndex));
+
+        headerNormalizer ??= static s => (s ?? string.Empty).Trim();
+        cellString ??= DefaultCellToStringCollapseTrim;
+
+        var comparer = caseInsensitiveHeaderMatch ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+        // 1) 讀表頭：HeaderText -> ColumnIndex
+        var headerRow = sheet.Rows[headerRowIndex];
+        var headerMap = new Dictionary<string, int>(comparer);
+        var headerActual = new List<string>(headerRow.ColumnCount);
+        for (int c = 0; c < headerRow.ColumnCount; c++)
+        {
+            var raw = cellString(headerRow.Cells[c]);
+            var norm = headerNormalizer(raw);
+            headerActual.Add(norm);
+            if (!string.IsNullOrEmpty(norm) && !headerMap.ContainsKey(norm))
+                headerMap[norm] = c;
+        }
+
+        // 2) 建 T 屬性對應（JsonPropertyName 或屬性名），並決定「期望順序」
+        var props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                             .Where(p => p.CanWrite)
+                             .ToArray();
+
+        var propMeta = props.Select(p => new
+        {
+            Property = p,
+            JsonName = p.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? p.Name,
+            TargetType = p.PropertyType,
+            Order = p.GetCustomAttribute<JsonPropertyOrderAttribute>()?.Order
+        }).ToArray();
+
+        // 期望順序：先依 JsonPropertyOrder，再以 MetadataToken 近似宣告順序，最後以名稱穩定排序
+        var orderedMeta = propMeta
+            .OrderBy(m => m.Order ?? int.MaxValue)
+            .ThenBy(m => m.Property.MetadataToken)
+            .ThenBy(m => m.JsonName, StringComparer.Ordinal)
+            .ToArray();
+
+        var expectedNormalized = orderedMeta.Select(m => headerNormalizer(m.JsonName)).ToArray();
+
+        // 缺少表頭 → 立即拋錯
+        var missing = expectedNormalized.Where(h => !headerMap.ContainsKey(h)).ToArray();
+        if (missing.Length > 0)
+            throw new OdsHeaderMismatchException(expectedNormalized, missing, headerActual);
+
+        // 欄位數量必須一致（以非空表頭為準）
+        var actualNonEmpty = headerActual.Where(h => !string.IsNullOrEmpty(h)).ToArray();
+        if (actualNonEmpty.Length != expectedNormalized.Length)
+            throw new OdsHeaderCountMismatchException(expectedNormalized.Length, actualNonEmpty.Length, expectedNormalized, actualNonEmpty);
+
+        // 檢查欄位順序（子序列相對順序必須一致；可容許中間有無關欄位）
+        if (enforceHeaderOrder)
+        {
+            var expectedSet = new HashSet<string>(expectedNormalized, comparer);
+            var actualSubsequence = headerActual.Where(h => expectedSet.Contains(h)).ToArray();
+            if (!SequencesEqual(expectedNormalized, actualSubsequence, comparer))
+            {
+                throw new OdsHeaderOrderMismatchException(expectedNormalized, actualSubsequence, headerActual);
+            }
+        }
+
+        // 3) 逐列轉換
+        var results = new List<T>(Math.Max(0, sheet.RowCount - dataStartRowIndex));
+        var errors = new List<OdsRowConversionException>();
+
+        for (int r = Math.Max(dataStartRowIndex, headerRowIndex + 1); r < sheet.RowCount; r++)
+        {
+            var row = sheet.Rows[r];
+
+            // 全空列判斷：以映射的欄位為準
+            bool allEmpty = true;
+            foreach (var m in orderedMeta)
+            {
+                var col = headerMap[headerNormalizer(m.JsonName)];
+                var cell = col < row.ColumnCount ? row.Cells[col] : OdsCell.Empty;
+                if (!IsEmpty(cell, cellString)) { allEmpty = false; break; }
+            }
+            if (allEmpty)
+            {
+                if (stopAtFirstAllEmptyRow) break;
+                else continue;
+            }
+
+            var dict = new Dictionary<string, object?>(orderedMeta.Length, comparer);
+            foreach (var m in orderedMeta)
+            {
+                var jsonName = m.JsonName;
+                var normHeader = headerNormalizer(jsonName);
+                var col = headerMap[normHeader];
+                var headerName = headerRow.Cells[col].ToString();
+                var cell = col < row.ColumnCount ? row.Cells[col] : OdsCell.Empty;
+
+                try
+                {
+                    var value = ConvertCellToTarget(cell, m.TargetType, cellString);
+                    dict[jsonName] = value;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new OdsRowConversionException(
+                        rowIndex: r,
+                        columnIndex: col,
+                        jsonPropertyName: jsonName,
+                        headerName: headerName,
+                        targetType: m.TargetType,
+                        cellType: cell.Type,
+                        cellPreview: cell.ToString(),
+                        inner: ex
+                    ));
+                }
+            }
+
+            if (errors.Count == 0 || errors[^1].RowIndex != r)
+            {
+                var json = JsonSerializer.Serialize(dict);
+                var obj = JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    NumberHandling = JsonNumberHandling.AllowReadingFromString
+                });
+                results.Add(obj!);
+            }
+        }
+
+        if (errors.Count > 0) throw new OdsAggregateConversionException(errors);
+        return results;
+    }
+
+    // ===== Helper：順序比較、字串正規化、型別轉換、空值判斷 =====
+
+    private static bool SequencesEqual(IEnumerable<string> a, IEnumerable<string> b, StringComparer cmp)
+    {
+        using var ea = a.GetEnumerator();
+        using var eb = b.GetEnumerator();
+        while (true)
+        {
+            var ma = ea.MoveNext();
+            var mb = eb.MoveNext();
+            if (ma != mb) return false; // 長度不同
+            if (!ma) return true;       // 皆結束 → 相等
+            if (cmp.Compare(ea.Current, eb.Current) != 0) return false;
+        }
+    }
+
+    private static string DefaultCellToStringCollapseTrim(OdsCell c)
+    {
+        var s = c.Type == OdsValueType.String ? (c.Text ?? string.Empty) : c.ToString();
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        s = s.Replace("\r\n", "\n").Replace('\r', '\n');
+
+        Span<char> buffer = stackalloc char[s.Length];
+        int pos = 0; bool prevSpace = false;
+        foreach (var ch in s)
+        {
+            bool spaceLike = ch == '\n' || ch == '\t' || ch == ' ';
+            if (spaceLike)
+            {
+                if (!prevSpace)
+                {
+                    if (pos < buffer.Length) buffer[pos++] = ' ';
+                    else return string.Join(' ', s.Split(new[] { '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
+                }
+                prevSpace = true;
+            }
+            else
+            {
+                if (pos < buffer.Length) buffer[pos++] = ch;
+                else return string.Join(' ', s.Split(new[] { '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
+                prevSpace = false;
+            }
+        }
+        return new string(buffer[..pos]).Trim();
+    }
+
+    private static bool IsEmpty(in OdsCell c, Func<OdsCell, string> toText) => c.Type switch
+    {
+        OdsValueType.Empty => true,
+        OdsValueType.String => string.IsNullOrWhiteSpace(toText(c)),
+        OdsValueType.Float => !c.Number.HasValue,
+        OdsValueType.Currency => !c.Number.HasValue,
+        OdsValueType.Boolean => !c.Boolean.HasValue,
+        OdsValueType.Date => !c.DateTime.HasValue,
+        OdsValueType.Time => !c.Time.HasValue,
+        _ => true
+    };
+
+    private static object? ConvertCellToTarget(in OdsCell c, Type targetType, Func<OdsCell, string> toText)
+    {
+        var u = Nullable.GetUnderlyingType(targetType);
+        var isNullable = u is not null;
+        var tt = u ?? targetType;
+
+        if (IsEmpty(c, toText))
+            return isNullable ? null : GetDefault(tt);
+
+        if (tt == typeof(string)) return toText(c);
+
+        // 數值系列
+        if (tt == typeof(int) || tt == typeof(long) || tt == typeof(short) ||
+            tt == typeof(double) || tt == typeof(float) || tt == typeof(decimal))
+        {
+            double? num = c.Number;
+            if (!num.HasValue)
+            {
+                var s = toText(c);
+                if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+                    throw new FormatException($"無法將「{s}」解析為數字。");
+                num = d;
+            }
+            checked
+            {
+                if (tt == typeof(int)) return (int)Math.Round(num.Value);
+                if (tt == typeof(long)) return (long)Math.Round(num.Value);
+                if (tt == typeof(short)) return (short)Math.Round(num.Value);
+                if (tt == typeof(double)) return num.Value;
+                if (tt == typeof(float)) return (float)num.Value;
+                if (tt == typeof(decimal)) return (decimal)num.Value;
+            }
+        }
+
+        // 布林
+        if (tt == typeof(bool))
+        {
+            if (c.Type == OdsValueType.Boolean && c.Boolean.HasValue) return c.Boolean.Value;
+            var s = toText(c);
+            if (bool.TryParse(s, out var b)) return b;
+            if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i)) return i != 0;
+            throw new FormatException("此儲存格不是布林值。");
+        }
+
+        // 日期/時間
+        if (tt == typeof(DateTimeOffset))
+        {
+            if (c.Type == OdsValueType.Date && c.DateTime.HasValue) return c.DateTime.Value;
+            var s = toText(c);
+            if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
+                return dto;
+            throw new FormatException($"無法解析日期時間「{s}」。");
+        }
+        if (tt == typeof(DateTime))
+        {
+            if (c.Type == OdsValueType.Date && c.DateTime.HasValue) return c.DateTime.Value.UtcDateTime;
+            var s = toText(c);
+            if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dt))
+                return dt;
+            throw new FormatException($"無法解析日期時間「{s}」。");
+        }
+        if (tt == typeof(TimeSpan))
+        {
+            if (c.Type == OdsValueType.Time && c.Time.HasValue) return c.Time.Value;
+            var s = toText(c);
+            if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out var ts))
+                return ts;
+            throw new FormatException($"無法解析時間區段「{s}」。");
+        }
+
+        // Enum：名稱或數值
+        if (tt.IsEnum)
+        {
+            var s = toText(c);
+            if (Enum.TryParse(tt, s, ignoreCase: true, out var ev)) return ev!;
+            if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ei))
+                return Enum.ToObject(tt, ei);
+            throw new FormatException($"無法解析列舉「{s}」為 {tt.Name}。");
+        }
+
+        // 其他型別：最後交給 STJ 嘗試
+        var json = JsonSerializer.Serialize(c.ToString());
+        return JsonSerializer.Deserialize(json, tt);
+
+        static object GetDefault(Type t) => t.IsValueType ? Activator.CreateInstance(t)! : null!;
+    }
+
 }
 
 
-}

@@ -6,4 +6,24 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>NeoFileMagic</PackageId>
+    <Authors>NeoFileMagic Contributors</Authors>
+    <Company>NeoFileMagic</Company>
+    <Description>安全、輕量、可控資源上限的多格式檔案讀取器（目前支援 ODS）。</Description>
+    <PackageTags>ODS;OpenDocument;Spreadsheet;Parser;XML;安全;資源上限</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <IncludeSource>false</IncludeSource>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 將根目錄的 README.md 打包進 NuGet 套件根目錄 -->
+    <None Include="../README.md" Pack="true" PackagePath="/" Link="README.md" />
+  </ItemGroup>
+
 </Project>
