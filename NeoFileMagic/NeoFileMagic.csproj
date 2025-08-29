@@ -14,7 +14,7 @@
     <PackageTags>ODS</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Benknightdark/NeoFileMagic.git</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/Benknightdark/NeoFileMagic</PackageProjectUrl>
+    <PackageProjectUrl>https://neo-blog-iota.vercel.app</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
