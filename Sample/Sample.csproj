@@ -11,8 +11,4 @@
     <ProjectReference Include="../NeoFileMagic/NeoFileMagic.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="OdsReaderWriter" Version="1.0.14" />
-  </ItemGroup>
-
 </Project>

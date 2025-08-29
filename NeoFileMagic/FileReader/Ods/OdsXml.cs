@@ -40,10 +40,6 @@ internal static class OdsXml
     /// <summary>
     /// 解析 content.xml 並建構工作表集合。
     /// </summary>
-    /// <param name="contentXml">content.xml 的資料流。</param>
-    /// <param name="options">讀取選項與資源上限。</param>
-    /// <returns>解析後的工作表清單。</returns>
-    /// <exception cref="InvalidDataException">當 XML 結構缺少必要節點或超出上限。</exception>
     internal static List<OdsSheet> ParseContent(Stream contentXml, OdsReaderOptions options)
     {
         var settings = SecureXmlReaderSettings();
@@ -102,8 +98,6 @@ internal static class OdsXml
                 // 若此列有效內容為空且允許折疊，則不展開此重複列（避免空白列爆量）
                 if (options.CollapseEmptyRepeatedRows && IsRowEffectivelyEmpty(in row))
                 {
-                    // 若希望至少保留 1 列，可改為：
-                    // if (rows.Count < options.MaxRowsPerSheet) rows.Add(row);
                     continue;
                 }
 
@@ -160,7 +154,8 @@ internal static class OdsXml
                     var repeat = GetIntAttr(xr, "number-columns-repeated", NsTable) ?? 1;
                     repeat = Math.Min(repeat, options.MaxRepeatedColumns);
                     if (repeat > 0)
-                        segments.Add(new OdsCellSegment(OdsCell.Empty, repeat));
+                        // ✅ 改為字串型空值，統一視為「空字串」
+                        segments.Add(new OdsCellSegment(new OdsCell { Type = OdsValueType.String, Text = string.Empty }, repeat));
 
                     if (!xr.IsEmptyElement) xr.Skip();
                 }
@@ -180,81 +175,39 @@ internal static class OdsXml
     }
 
     /// <summary>
-    /// 讀取 <c>table:table-cell</c> 或相關節點為 <see cref="OdsCell"/>。
+    /// 讀取 <c>table:table-cell</c>，僅回傳「可見文字」；若無文字則回傳空字串。
+    /// 不判斷型別，所有內容都以字串形式輸出。
     /// </summary>
     private static OdsCell ReadCell(XmlReader xr, OdsReaderOptions options)
     {
         // 目前位於 <table:table-cell>
-        var vt = xr.GetAttribute("value-type", NsOffice);
-        var formula = xr.GetAttribute("formula", NsTable); // 格式通常像 of:=SUM([.A1:.A3])
-        var cell = new OdsCell();
+        // 記下可能的「值屬性」以備回退
+        var officeValue     = xr.GetAttribute("value", NsOffice);
+        var officeDateValue = xr.GetAttribute("date-value", NsOffice);
+        var officeTimeValue = xr.GetAttribute("time-value", NsOffice);
+        var officeBoolValue = xr.GetAttribute("boolean-value", NsOffice);
 
-        switch (vt)
+        // 讀出 cell 內的可見文字（會讀到 </table:table-cell>）
+        string text = ReadCellText(xr, options);
+
+        // 若沒有任何可見文字，回退用屬性字串（其一）
+        if (string.IsNullOrEmpty(text))
         {
-            case "string":
-                {
-                    string text = ReadCellText(xr, options);
-                    cell = new OdsCell { Type = OdsValueType.String, Text = text, Formula = formula };
-                    break;
-                }
-            case "float":
-                {
-                    var d = GetDoubleAttr(xr, "value", NsOffice);
-                    cell = new OdsCell { Type = OdsValueType.Float, Number = d, Formula = formula };
-                    if (!xr.IsEmptyElement) xr.Skip();
-                    break;
-                }
-            case "currency":
-                {
-                    var d = GetDoubleAttr(xr, "value", NsOffice);
-                    var cur = xr.GetAttribute("currency", NsOffice);
-                    cell = new OdsCell { Type = OdsValueType.Currency, Number = d, Currency = cur, Formula = formula };
-                    if (!xr.IsEmptyElement) xr.Skip();
-                    break;
-                }
-            case "boolean":
-                {
-                    var bStr = xr.GetAttribute("boolean-value", NsOffice);
-                    bool? b = bStr is null ? null : string.Equals(bStr, "true", StringComparison.OrdinalIgnoreCase) ? true : string.Equals(bStr, "false", StringComparison.OrdinalIgnoreCase) ? false : null;
-                    cell = new OdsCell { Type = OdsValueType.Boolean, Boolean = b, Formula = formula };
-                    if (!xr.IsEmptyElement) xr.Skip();
-                    break;
-                }
-            case "date":
-                {
-                    var dv = xr.GetAttribute("date-value", NsOffice);
-                    DateTimeOffset? dto = null;
-                    if (!string.IsNullOrEmpty(dv))
-                    {
-                        try { dto = System.Xml.XmlConvert.ToDateTimeOffset(dv); }
-                        catch { /* ignore */ }
-                    }
-                    cell = new OdsCell { Type = OdsValueType.Date, DateTime = dto, Formula = formula };
-                    if (!xr.IsEmptyElement) xr.Skip();
-                    break;
-                }
-            case "time":
-                {
-                    var tv = xr.GetAttribute("time-value", NsOffice);
-                    TimeSpan? ts = null;
-                    if (!string.IsNullOrEmpty(tv))
-                    {
-                        try { ts = System.Xml.XmlConvert.ToTimeSpan(tv); } catch { }
-                    }
-                    cell = new OdsCell { Type = OdsValueType.Time, Time = ts, Formula = formula };
-                    if (!xr.IsEmptyElement) xr.Skip();
-                    break;
-                }
-            default:
-                {
-                    // 空白或未知型別
-                    if (!xr.IsEmptyElement) xr.Skip();
-                    cell = OdsCell.Empty;
-                    break;
-                }
+            text = officeValue
+                ?? officeDateValue
+                ?? officeTimeValue
+                ?? officeBoolValue
+                ?? string.Empty;
         }
 
-        return cell;
+        // 一律回傳字串型態；若無值就是空字串
+        return new OdsCell
+        {
+            Type = OdsValueType.String,
+            Text = text
+            // 如需保留公式，可額外帶出：
+            // Formula = xr.GetAttribute("formula", NsTable)
+        };
     }
 
     /// <summary>
@@ -353,9 +306,6 @@ internal static class OdsXml
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    /// <summary>
-    /// 取得整數屬性並轉型，失敗回傳 null。
-    /// </summary>
     private static int? GetIntAttr(XmlReader xr, string local, string ns)
     {
         var s = xr.GetAttribute(local, ns);
@@ -365,9 +315,6 @@ internal static class OdsXml
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    /// <summary>
-    /// 取得浮點屬性並轉型，失敗回傳 null。
-    /// </summary>
     private static double? GetDoubleAttr(XmlReader xr, string local, string ns)
     {
         var s = xr.GetAttribute(local, ns);
@@ -377,10 +324,7 @@ internal static class OdsXml
     }
 
     /// <summary>
-    /// 判斷一列是否「有效內容為空」。空白字串與 Empty 型別視為空；其他型別只要有值就視為非空。
-    /// </summary>
-    /// <summary>
-    /// 判斷一列是否有效內容為空（空白字串與 Empty 視為空）。
+    /// 判斷一列是否有效內容為空（只要任一儲存格有非空字串就視為非空）。
     /// </summary>
     private static bool IsRowEffectivelyEmpty(in OdsRow row)
     {
@@ -394,23 +338,15 @@ internal static class OdsXml
         return true;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     /// <summary>
-    /// 判斷儲存格是否可視為空白（型別為 Empty 或空字串）。
+    /// 判斷儲存格是否可視為空白（字串為 null 或空）。
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsCellEffectivelyEmpty(in OdsCell c)
-        => c.Type switch
-        {
-            OdsValueType.Empty => true,
-            OdsValueType.String => string.IsNullOrEmpty(c.Text),
-            _ => false
-        };
+        => string.IsNullOrEmpty(c.Text);
 
     // ===== RLE（Run-Length Encoding）欄位容器 =====
 
-    /// <summary>
-    /// 代表一段重複的儲存格（RLE 區段）。
-    /// </summary>
     private readonly struct OdsCellSegment
     {
         public readonly OdsCell Cell;
@@ -430,9 +366,6 @@ internal static class OdsXml
         private readonly OdsCellSegment[] _segments;
         private readonly int _count; // 展開後的欄位數（已應用上限與尾端修剪）
 
-        /// <summary>
-        /// 以區段清單建構欄位清單，會依上限裁切並可選擇修剪尾端空欄。
-        /// </summary>
         public OdsCellList(List<OdsCellSegment> segments, int maxColumns, bool trimTrailingEmpty)
         {
             if (segments.Count == 0)
@@ -456,7 +389,7 @@ internal static class OdsXml
 
             if (trimTrailingEmpty && total > 0)
             {
-                // 從尾端修剪連續的空欄（Empty 或空字串）
+                // 從尾端修剪連續的空欄（空字串）
                 for (int i = tmp.Count - 1; i >= 0; i--)
                 {
                     if (!IsCellEffectivelyEmpty(tmp[i].Cell)) break;
@@ -471,9 +404,6 @@ internal static class OdsXml
 
         public int Count => _count;
 
-        /// <summary>
-        /// 以索引取得欄位（依序走訪區段計算）。
-        /// </summary>
         public OdsCell this[int index]
         {
             get
@@ -486,7 +416,7 @@ internal static class OdsXml
                     if (i < seg.Count) return seg.Cell;
                     i -= seg.Count;
                 }
-                // 理論上不會到這裡
+                // 理論上不會到這裡；保持一致回傳空字串 cell
                 return OdsCell.Empty;
             }
         }
@@ -494,9 +424,6 @@ internal static class OdsXml
         public IEnumerator<OdsCell> GetEnumerator() => new Enumerator(_segments, _count);
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        /// <summary>
-        /// 走訪列舉器，逐一輸出展開後的儲存格。
-        /// </summary>
         private sealed class Enumerator : IEnumerator<OdsCell>
         {
             private readonly OdsCellSegment[] _segs;
@@ -506,9 +433,6 @@ internal static class OdsXml
             private int _segOffset;
             private OdsCell _current;
 
-            /// <summary>
-            /// 建立列舉器。
-            /// </summary>
             public Enumerator(OdsCellSegment[] segs, int count)
             {
                 _segs = segs;

@@ -1,15 +1,10 @@
-﻿using System;
-using System.Data;
-using System.Globalization;
-using System.Linq;
+﻿using System.Data;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
-using System.Threading.Tasks;
 using NeoFileMagic.FileReader.Ods;
-using Zaretto.ODS;
 
 
 public sealed class TreatmentRow
@@ -31,16 +26,6 @@ public sealed class TreatmentRow
 }
 class Program
 {
-    static string FormatIsoDateOrOriginal(string? s, string format = "yyyy-MM-dd")
-    {
-        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
-        if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture,
-            DateTimeStyles.RoundtripKind, out var dto))
-        {
-            return dto.ToString(format, CultureInfo.InvariantCulture);
-        }
-        return s; // 非預期格式就如實輸出，避免例外
-    }
     static async Task Main()
     {
         // 同步讀取本地 ODS
@@ -81,32 +66,30 @@ class Program
             enforceHeaderOrder: true
         );
         Console.WriteLine($"反序列化取得 {rows.Count()} 筆資料");
-        // foreach (var row in rows)
-        // {
-        //     Console.WriteLine($"{row.Code}");
-        //     Console.WriteLine($"{row.Points}");
-        //     Console.WriteLine($"{row.StartDate}");
-        //     Console.WriteLine($"{row.EndDate}");
-        //     Console.WriteLine($"{row.EnName}");
-        //     Console.WriteLine($"{row.ZhName}");
-        //     Console.WriteLine($"{row.Note}");
-        //     Console.WriteLine("---------------------");
-
-        // }
-
-        var odsReaderWriter = new ODSReaderWriter();
-        var spreadsheetData = odsReaderWriter.ReadOdsFile("./sample.ods");
-        DataTable table = spreadsheetData.Tables[0];
-        System.Console.WriteLine("Sheet {0}", table.TableName);
-        foreach (DataTable d in spreadsheetData.Tables)
+        foreach (var row in rows)
         {
-            System.Console.WriteLine("Sheet {0}", d.TableName);
-            foreach (var row in d.AsEnumerable())
-            {
-                if (row.ItemArray.Any(ia => !string.IsNullOrEmpty(ia.ToString())))
-                    System.Console.WriteLine("    {0}", string.Join(",", row.ItemArray.Select(xx => xx.ToString())));
-            }
+            Console.WriteLine($"{row.Code}");
+            Console.WriteLine($"{row.Points}");
+            Console.WriteLine($"{row.StartDate}");
+            Console.WriteLine($"{row.EndDate}");
+            Console.WriteLine($"{row.EnName}");
+            Console.WriteLine($"{row.ZhName}");
+            Console.WriteLine($"{row.Note}");
+            Console.WriteLine("---------------------");
         }
+
+
+        var jsonOptions = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+            WriteIndented = true
+        };
+        var outDir = "./out";
+        Directory.CreateDirectory(outDir);
+        var outPath = Path.Combine(outDir, "treatment_rows.json");
+        var json = JsonSerializer.Serialize(rows, jsonOptions);
+        await File.WriteAllTextAsync(outPath, json, new UTF8Encoding(false));
+        Console.WriteLine($"已輸出 JSON：{outPath}");
 
     }
 }

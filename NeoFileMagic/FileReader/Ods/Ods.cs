@@ -8,6 +8,7 @@ using System.Net;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NeoFileMagic.FileReader.Ods.Exception;
 
 /// <summary>
 /// 讀取 ODS 檔案的進入點。
@@ -279,7 +280,7 @@ public static class Ods
                     var value = ConvertCellToTarget(cell, m.TargetType, cellString);
                     dict[jsonName] = value;
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
                     errors.Add(new OdsRowConversionException(
                         rowIndex: r,
@@ -456,5 +457,3 @@ public static class Ods
     }
 
 }
-
-
