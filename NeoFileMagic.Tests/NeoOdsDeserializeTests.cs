@@ -24,10 +24,10 @@ public sealed class NeoOdsDeserializeTests
     }
 
     private static string WrapContent(string innerTable)
-    => $@"<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\">
+    => $@"<office:document-content xmlns:office=""urn:oasis:names:tc:opendocument:xmlns:office:1.0"" xmlns:table=""urn:oasis:names:tc:opendocument:xmlns:table:1.0"" xmlns:text=""urn:oasis:names:tc:opendocument:xmlns:text:1.0"">
   <office:body>
     <office:spreadsheet>
-      <table:table table:name=\"S\">{innerTable}</table:table>
+      <table:table table:name=""S"">{innerTable}</table:table>
     </office:spreadsheet>
   </office:body>
 </office:document-content>";
@@ -47,20 +47,20 @@ public sealed class NeoOdsDeserializeTests
     {
         var table = @"
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>Id</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>Name</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>Active</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>Score</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>When</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>Duration</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Id</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Name</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Active</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Score</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>When</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Duration</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"float\" office:value=\"1\"/>
-    <table:table-cell office:value-type=\"string\"><text:p>Alice</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"boolean\" office:boolean-value=\"true\"/>
-    <table:table-cell office:value-type=\"float\" office:value=\"9.5\"/>
-    <table:table-cell office:value-type=\"date\" office:date-value=\"2024-05-01T12:00:00Z\"/>
-    <table:table-cell office:value-type=\"time\" office:time-value=\"PT1H2M3S\"/>
+    <table:table-cell office:value-type=""float"" office:value=""1""/>
+    <table:table-cell office:value-type=""string""><text:p>Alice</text:p></table:table-cell>
+    <table:table-cell office:value-type=""boolean"" office:boolean-value=""true""/>
+    <table:table-cell office:value-type=""float"" office:value=""9.5""/>
+    <table:table-cell office:value-type=""date"" office:date-value=""2024-05-01T12:00:00Z""/>
+    <table:table-cell office:value-type=""time"" office:time-value=""PT1H2M3S""/>
   </table:table-row>";
 
         using var ods = BuildOds(WrapContent(table));
@@ -91,12 +91,12 @@ public sealed class NeoOdsDeserializeTests
     {
         var table = @"
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>代碼</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>啟用</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>代碼</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>啟用</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>ST01</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"boolean\" office:boolean-value=\"true\"/>
+    <table:table-cell office:value-type=""string""><text:p>ST01</text:p></table:table-cell>
+    <table:table-cell office:value-type=""boolean"" office:boolean-value=""true""/>
   </table:table-row>";
 
         using var ods = BuildOds(WrapContent(table));
@@ -122,12 +122,12 @@ public sealed class NeoOdsDeserializeTests
         // 期望順序為 B, A（因 Order=1 在前），但實際表頭是 A, B → 應拋例外
         var table = @"
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>A</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>B</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>A</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>B</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>a</text:p></table:table-cell>
-    <table:table-cell office:value-type=\"string\"><text:p>b</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>a</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>b</text:p></table:table-cell>
   </table:table-row>";
         using var ods = BuildOds(WrapContent(table));
         var doc = NeoOds.Load(ods);
@@ -145,10 +145,10 @@ public sealed class NeoOdsDeserializeTests
     {
         var table = @"
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>Other</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Other</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>x</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>x</text:p></table:table-cell>
   </table:table-row>";
         using var ods = BuildOds(WrapContent(table));
         var doc = NeoOds.Load(ods);
@@ -166,16 +166,17 @@ public sealed class NeoOdsDeserializeTests
     {
         var table = @"
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>Name</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>Name</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>N1</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>N1</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"></table:table-cell>
+    <table:table-cell office:value-type=""string""></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>junk</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>N2</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>N2</text:p></table:table-cell>
   </table:table-row>";
 
         using var ods = BuildOds(WrapContent(table));
@@ -196,10 +197,10 @@ public sealed class NeoOdsDeserializeTests
     {
         var table = @"
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>N</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>N</text:p></table:table-cell>
   </table:table-row>
   <table:table-row>
-    <table:table-cell office:value-type=\"string\"><text:p>abc</text:p></table:table-cell>
+    <table:table-cell office:value-type=""string""><text:p>abc</text:p></table:table-cell>
   </table:table-row>";
 
         using var ods = BuildOds(WrapContent(table));
@@ -213,4 +214,3 @@ public sealed class NeoOdsDeserializeTests
         Assert.Equal(typeof(int), e.TargetType);
     }
 }
-
