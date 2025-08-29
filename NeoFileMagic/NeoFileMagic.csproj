@@ -21,7 +21,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <IncludeSource>false</IncludeSource>
-    <PackageIcon>cover.png</PackageIcon>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,7 +31,7 @@
   <ItemGroup>
     <!-- 將根目錄的 README.md 打包進 NuGet 套件根目錄 -->
     <None Include="../README.md" Pack="true" PackagePath="/" Link="README.md" />
-    <None Include="../images/cover.png" Pack="true" PackagePath="/" Link="cover.png" />
+    <None Include="/images/icon.png" Pack="true" PackagePath="/" Link="icon.png" />
   </ItemGroup>
 
 </Project>
