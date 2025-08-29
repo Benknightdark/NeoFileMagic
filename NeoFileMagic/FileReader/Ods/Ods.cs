@@ -167,7 +167,7 @@ public static class Ods
     /// 實際表頭中對應之子序列若與期望順序不同則拋 
     /// <see cref="OdsHeaderOrderMismatchException"/>。
     /// </param>
-    public static List<T> DeserializeSheetOrThrow<T>(
+    public static IEnumerable<T> DeserializeSheetOrThrow<T>(
         OdsSheet sheet,
         int headerRowIndex = 0,
         int dataStartRowIndex = 1,
