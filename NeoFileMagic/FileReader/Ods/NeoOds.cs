@@ -277,8 +277,9 @@ public static class NeoOds
                 try
                 {
                     var value = ConvertCellToTarget(cell, m.TargetType, cellString);
-                    // 以 CLR 屬性名稱作為鍵，確保 Newtonsoft.Json 能正確繫結
-                    dict[m.Property.Name] = value;
+                    // 以 JsonName（若有 [JsonProperty] 指定則使用）作為鍵，
+                    // 讓 Newtonsoft.Json 依屬性對應名稱進行繫結，避免因覆寫名稱而無法賦值。
+                    dict[jsonName] = value;
                 }
                 catch (System.Exception ex)
                 {

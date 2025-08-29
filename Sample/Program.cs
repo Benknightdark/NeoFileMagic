@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Text;
 using Newtonsoft.Json;
+using System.Globalization;
 using NeoFileMagic.FileReader.Ods;
 
 
@@ -62,8 +63,8 @@ class Program
         {
             Console.WriteLine($"{row.Code}");
             Console.WriteLine($"{row.Points}");
-            Console.WriteLine($"{row.StartDate}");
-            Console.WriteLine($"{row.EndDate}");
+            Console.WriteLine(row.StartDate.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+            Console.WriteLine(row.EndDate.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
             Console.WriteLine($"{row.EnName}");
             Console.WriteLine($"{row.ZhName}");
             Console.WriteLine($"{row.Note}");

@@ -19,11 +19,11 @@
 using NeoFileMagic.FileReader.Ods;
 
 // 從檔案載入 ODS
-var doc = Ods.Load("sample.ods");
+var doc = NeoOds.Load("sample.ods");
 
 // 讀取第一個工作表的 (0,0) 儲存格
 var cell = doc.Sheets[0].GetCell(0, 0);
-Console.WriteLine(Ods.OneLine(cell));
+Console.WriteLine(NeoOds.OneLine(cell));
 ```
 
 ## 使用範例
@@ -32,7 +32,7 @@ Console.WriteLine(Ods.OneLine(cell));
 ```csharp
 using NeoFileMagic.FileReader.Ods;
 
-var doc = Ods.Load("sample.ods");
+var doc = NeoOds.Load("sample.ods");
 var sheet = doc.Sheets[0];
 
 for (int r = 0; r < sheet.RowCount; r++)
@@ -42,7 +42,7 @@ for (int r = 0; r < sheet.RowCount; r++)
     {
         var cell = row.Cells[c];
         // 以單行輸出：換行/Tab 摺疊為空白
-        Console.Write(Ods.OneLine(cell));
+        Console.Write(NeoOds.OneLine(cell));
         Console.Write('\t');
     }
     Console.WriteLine();
@@ -66,7 +66,7 @@ var options = new OdsReaderOptions
     MaxRepeatedColumns = 256,
 };
 
-var doc = Ods.Load("sample.ods", options);
+var doc = NeoOds.Load("sample.ods", options);
 ```
 
 ### 3) 以強型別模型反序列化工作表
@@ -82,9 +82,9 @@ public sealed class Person
     [JsonProperty(PropertyName = "Age")]  public int Age  { get; set; }
 }
 
-var doc = Ods.Load("people.ods");
+var doc = NeoOds.Load("people.ods");
 var sheet = doc.Sheets[0];
-var list = Ods.DeserializeSheetOrThrow<Person>(sheet);
+var list = NeoOds.DeserializeSheetOrThrow<Person>(sheet);
 // list 為強型別結果，若欄位/資料不符會拋出 Ods* 相關例外
 ```
 
@@ -92,7 +92,7 @@ var list = Ods.DeserializeSheetOrThrow<Person>(sheet);
 ```csharp
 using NeoFileMagic.FileReader.Ods;
 
-var doc = await Ods.LoadFromUrlAsync("https://example.com/data.ods");
+var doc = await NeoOds.LoadFromUrlAsync("https://example.com/data.ods");
 ```
 
 建置/測試：

@@ -175,8 +175,8 @@ internal static class OdsXml
     }
 
     /// <summary>
-    /// 讀取 <c>table:table-cell</c>，僅回傳「可見文字」；若無文字則回傳空字串。
-    /// 不判斷型別，所有內容都以字串形式輸出。
+    /// 讀取 <c>table:table-cell</c> 並依 office:value-type 判斷型別；
+    /// 若型別資訊不足則回退為字串（採用可見文字或屬性值之一）。
     /// </summary>
     private static OdsCell ReadCell(XmlReader xr, OdsReaderOptions options)
     {
@@ -186,11 +186,59 @@ internal static class OdsXml
         var officeDateValue = xr.GetAttribute("date-value", NsOffice);
         var officeTimeValue = xr.GetAttribute("time-value", NsOffice);
         var officeBoolValue = xr.GetAttribute("boolean-value", NsOffice);
+        var officeValueType = xr.GetAttribute("value-type", NsOffice);
+        var formula = xr.GetAttribute("formula", NsTable);
 
         // 讀出 cell 內的可見文字（會讀到 </table:table-cell>）
         string text = ReadCellText(xr, options);
 
-        // 若沒有任何可見文字，回退用屬性字串（其一）
+        // 依 value-type 決定輸出型別
+        switch (officeValueType)
+        {
+            case "float":
+            {
+                if (double.TryParse(officeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+                    return new OdsCell { Type = OdsValueType.Float, Number = d, Formula = formula };
+                break;
+            }
+            case "currency":
+            {
+                if (double.TryParse(officeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+                    return new OdsCell { Type = OdsValueType.Currency, Number = d, Formula = formula };
+                break;
+            }
+            case "boolean":
+            {
+                if (bool.TryParse(officeBoolValue, out var b))
+                    return new OdsCell { Type = OdsValueType.Boolean, Boolean = b, Formula = formula };
+                break;
+            }
+            case "date":
+            {
+                if (!string.IsNullOrEmpty(officeDateValue) &&
+                    DateTimeOffset.TryParse(officeDateValue, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
+                    return new OdsCell { Type = OdsValueType.Date, DateTime = dto, Formula = formula };
+                break;
+            }
+            case "time":
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(officeTimeValue))
+                    {
+                        var ts = System.Xml.XmlConvert.ToTimeSpan(officeTimeValue);
+                        return new OdsCell { Type = OdsValueType.Time, Time = ts, Formula = formula };
+                    }
+                }
+                catch { /* fall back below */ }
+                break;
+            }
+            case "string":
+            default:
+                break;
+        }
+
+        // 回退為字串：若無可見文字則使用一個屬性值
         if (string.IsNullOrEmpty(text))
         {
             text = officeValue
@@ -200,14 +248,7 @@ internal static class OdsXml
                 ?? string.Empty;
         }
 
-        // 一律回傳字串型態；若無值就是空字串
-        return new OdsCell
-        {
-            Type = OdsValueType.String,
-            Text = text
-            // 如需保留公式，可額外帶出：
-            // Formula = xr.GetAttribute("formula", NsTable)
-        };
+        return new OdsCell { Type = OdsValueType.String, Text = text, Formula = formula };
     }
 
     /// <summary>
@@ -343,7 +384,15 @@ internal static class OdsXml
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsCellEffectivelyEmpty(in OdsCell c)
-        => string.IsNullOrEmpty(c.Text);
+        => c.Type switch
+        {
+            OdsValueType.String => string.IsNullOrEmpty(c.Text),
+            OdsValueType.Float or OdsValueType.Currency => c.Number is null,
+            OdsValueType.Boolean => c.Boolean is null,
+            OdsValueType.Date => c.DateTime is null,
+            OdsValueType.Time => c.Time is null,
+            _ => true,
+        };
 
     // ===== RLE（Run-Length Encoding）欄位容器 =====
 
