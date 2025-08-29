@@ -38,7 +38,7 @@ public sealed class OdsXmlTests
         """;
 
         using var ods = BuildOds(content);
-        var doc = Ods.Load(ods);
+        var doc = NeoOds.Load(ods);
 
         Assert.Single(doc.Sheets);
         var sh = doc.Sheets[0];
@@ -48,9 +48,9 @@ public sealed class OdsXmlTests
         var c0 = sh.GetCell(0, 0);
         Assert.Equal(OdsValueType.String, c0.Type);
         Assert.Equal("Hello  World\nSecond", c0.Text);
-        Assert.Equal("Hello  World\\nSecond", Ods.OneLine(c0, TextHandling.Escape));
-        Assert.Equal("Hello World Second", Ods.OneLine(c0, TextHandling.CollapseToSpace));
-        Assert.Equal("Hello  World", Ods.OneLine(c0, TextHandling.FirstParagraph));
+        Assert.Equal("Hello  World\\nSecond", NeoOds.OneLine(c0, TextHandling.Escape));
+        Assert.Equal("Hello World Second", NeoOds.OneLine(c0, TextHandling.CollapseToSpace));
+        Assert.Equal("Hello  World", NeoOds.OneLine(c0, TextHandling.FirstParagraph));
 
         var c1 = sh.GetCell(0, 1);
         Assert.Equal(OdsValueType.Float, c1.Type);
@@ -94,7 +94,7 @@ public sealed class OdsXmlTests
         var tmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".ods");
         using (var fs = File.Create(tmp)) odsStream.CopyTo(fs);
 
-        var doc = Ods.Load(tmp);
+        var doc = NeoOds.Load(tmp);
         Assert.Single(doc.Sheets);
         Assert.Equal("SheetA", doc.Sheets[0].Name);
         Assert.Equal("Hi", doc.Sheets[0].GetCell(0, 0).Text);
@@ -109,7 +109,7 @@ public sealed class OdsXmlTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sample.ods");
         if (!File.Exists(path)) return; // CI 或開發環境未附帶檔案時，直接返回不失敗
-        var doc = Ods.Load(path);
+        var doc = NeoOds.Load(path);
         Assert.NotNull(doc);
         Assert.NotNull(doc.Sheets);
     }
@@ -167,10 +167,10 @@ public sealed class OdsXmlTests
         """;
 
         using var ods = BuildOds(content, manifest);
-        Assert.Throws<NotSupportedException>(() => Ods.Load(ods));
+        Assert.Throws<NotSupportedException>(() => NeoOds.Load(ods));
 
         ods.Position = 0;
-        var doc = Ods.Load(ods, new OdsReaderOptions { ThrowOnEncrypted = false });
+        var doc = NeoOds.Load(ods, new OdsReaderOptions { ThrowOnEncrypted = false });
         Assert.Empty(doc.Sheets);
     }
 
@@ -181,10 +181,10 @@ public sealed class OdsXmlTests
     public void Ods_OneLine_Modes_Work()
     {
         var cell = new OdsCell { Type = OdsValueType.String, Text = "A\nB\tC\\D" };
-        Assert.Equal("A", Ods.OneLine(new OdsCell { Type = OdsValueType.String, Text = "A\r\n" }, TextHandling.CollapseToSpace));
-        Assert.Equal("A\\nB\\tC\\\\D", Ods.OneLine(cell, TextHandling.Escape));
-        Assert.Equal("A B C\\D", Ods.OneLine(cell, TextHandling.CollapseToSpace));
-        Assert.Equal("A", Ods.OneLine(cell, TextHandling.FirstParagraph));
+        Assert.Equal("A", NeoOds.OneLine(new OdsCell { Type = OdsValueType.String, Text = "A\r\n" }, TextHandling.CollapseToSpace));
+        Assert.Equal("A\\nB\\tC\\\\D", NeoOds.OneLine(cell, TextHandling.Escape));
+        Assert.Equal("A B C\\D", NeoOds.OneLine(cell, TextHandling.CollapseToSpace));
+        Assert.Equal("A", NeoOds.OneLine(cell, TextHandling.FirstParagraph));
     }
 
     /// <summary>

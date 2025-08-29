@@ -1,27 +1,24 @@
 ﻿using System.Data;
 using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Unicode;
+using Newtonsoft.Json;
 using NeoFileMagic.FileReader.Ods;
 
 
 public sealed class TreatmentRow
 {
-    [JsonPropertyName("診療項目 代碼")]
-    public string? Code { get; set; } = null;
-    [JsonPropertyName("健保支付 點數")]
-    public string? Points { get; set; } = null;
-    [JsonPropertyName("生效起日")]
-    public string? StartDate { get; set; } = null;
-    [JsonPropertyName("生效迄日")]
-    public string? EndDate { get; set; } = null;
-    [JsonPropertyName("英文項目名稱")]
+    [JsonProperty("診療項目 代碼")]
+    public string Code { get; set; } = null!;
+    [JsonProperty("健保支付 點數")]
+    public string Points { get; set; } = null!;
+    [JsonProperty("生效起日")]
+    public DateTime StartDate { get; set; } 
+    [JsonProperty("生效迄日")]
+    public DateTime EndDate { get; set; } 
+    [JsonProperty("英文項目名稱")]
     public string? EnName { get; set; } = null;
-    [JsonPropertyName("中文項目名稱")]
+    [JsonProperty("中文項目名稱")]
     public string? ZhName { get; set; } = null;
-    [JsonPropertyName("備註")]
+    [JsonProperty("備註")]
     public string? Note { get; set; } = null;
 }
 class Program
@@ -29,7 +26,7 @@ class Program
     static async Task Main()
     {
         // 同步讀取本地 ODS
-        var doc = Ods.Load("./sample.ods");
+        var doc = NeoOds.Load("./sample.ods");
         var sheet = doc.Sheets[0];
         if (sheet.RowCount == 0)
         {
@@ -45,7 +42,7 @@ class Program
         }
 
         // 非同步下載並讀取 ODS
-        var doc2 = await Ods.LoadFromUrlAsync(
+        var doc2 = await NeoOds.LoadFromUrlAsync(
             "https://info.nhi.gov.tw/api/iode0000s01/Dataset?rId=A21030000I-D20003-004",
             new OdsReaderOptions { LimitMode = OdsLimitMode.Truncate }
         );
@@ -59,12 +56,7 @@ class Program
         }
 
         // 反序列化為物件集合
-        var rows = Ods.DeserializeSheetOrThrow<TreatmentRow>(
-            sheet2,
-            headerRowIndex: 0,
-            dataStartRowIndex: 1,
-            enforceHeaderOrder: true
-        );
+        var rows = NeoOds.DeserializeSheetOrThrow<TreatmentRow>(sheet2);
         Console.WriteLine($"反序列化取得 {rows.Count()} 筆資料");
         foreach (var row in rows)
         {
@@ -79,15 +71,15 @@ class Program
         }
 
 
-        var jsonOptions = new JsonSerializerOptions
+        var jsonSettings = new JsonSerializerSettings
         {
-            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
-            WriteIndented = true
+            Formatting = Formatting.Indented,
+            StringEscapeHandling = StringEscapeHandling.Default
         };
         var outDir = "./out";
         Directory.CreateDirectory(outDir);
         var outPath = Path.Combine(outDir, "treatment_rows.json");
-        var json = JsonSerializer.Serialize(rows, jsonOptions);
+        var json = JsonConvert.SerializeObject(rows, jsonSettings);
         await File.WriteAllTextAsync(outPath, json, new UTF8Encoding(false));
         Console.WriteLine($"已輸出 JSON：{outPath}");
 

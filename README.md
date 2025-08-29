@@ -71,14 +71,15 @@ var doc = Ods.Load("sample.ods", options);
 
 ### 3) 以強型別模型反序列化工作表
 嚴格依表頭（或 `[JsonPropertyName]`）對應欄位，欄位順序/缺漏或格式錯誤會拋出具體例外。
+反序列化內部使用 Newtonsoft.Json 進行型別轉換。
 ```csharp
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using NeoFileMagic.FileReader.Ods;
 
 public sealed class Person
 {
-    [JsonPropertyName("Name")] public string Name { get; set; } = string.Empty;
-    [JsonPropertyName("Age")]  public int Age  { get; set; }
+    [JsonProperty(PropertyName = "Name")] public string Name { get; set; } = string.Empty;
+    [JsonProperty(PropertyName = "Age")]  public int Age  { get; set; }
 }
 
 var doc = Ods.Load("people.ods");

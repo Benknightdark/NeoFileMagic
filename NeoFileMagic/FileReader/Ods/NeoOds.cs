@@ -6,14 +6,13 @@ using System.IO;
 using System.IO.Compression;
 using System.Net;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using NeoFileMagic.FileReader.Ods.Exception;
+using Newtonsoft.Json;
 
 /// <summary>
 /// 讀取 ODS 檔案的進入點。
 /// </summary>
-public static class Ods
+public static class NeoOds
 {
     /// <summary>
     /// 從檔案路徑載入 ODS。
@@ -209,9 +208,9 @@ public static class Ods
         var propMeta = props.Select(p => new
         {
             Property = p,
-            JsonName = p.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? p.Name,
+            JsonName = p.GetCustomAttribute<JsonPropertyAttribute>()?.PropertyName ?? p.Name,
             TargetType = p.PropertyType,
-            Order = p.GetCustomAttribute<JsonPropertyOrderAttribute>()?.Order
+            Order = p.GetCustomAttribute<JsonPropertyAttribute>()?.Order
         }).ToArray();
 
         // 期望順序：先依 JsonPropertyOrder，再以 MetadataToken 近似宣告順序，最後以名稱穩定排序
@@ -278,7 +277,8 @@ public static class Ods
                 try
                 {
                     var value = ConvertCellToTarget(cell, m.TargetType, cellString);
-                    dict[jsonName] = value;
+                    // 以 CLR 屬性名稱作為鍵，確保 Newtonsoft.Json 能正確繫結
+                    dict[m.Property.Name] = value;
                 }
                 catch (System.Exception ex)
                 {
@@ -297,11 +297,12 @@ public static class Ods
 
             if (errors.Count == 0 || errors[^1].RowIndex != r)
             {
-                var json = JsonSerializer.Serialize(dict);
-                var obj = JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
+                var json = JsonConvert.SerializeObject(dict);
+                var obj = JsonConvert.DeserializeObject<T>(json, new JsonSerializerSettings
                 {
-                    PropertyNameCaseInsensitive = true,
-                    NumberHandling = JsonNumberHandling.AllowReadingFromString
+                    // 允許字串與數值之間做寬鬆轉換
+                    Culture = CultureInfo.InvariantCulture,
+                    DateParseHandling = DateParseHandling.DateTimeOffset
                 });
                 results.Add(obj!);
             }
@@ -424,9 +425,13 @@ public static class Ods
         }
         if (tt == typeof(DateTime))
         {
-            if (c.Type == OdsValueType.Date && c.DateTime.HasValue) return c.DateTime.Value.UtcDateTime;
+            // 不轉換為本地或 UTC，維持原始牆鐘時間
+            if (c.Type == OdsValueType.Date && c.DateTime.HasValue) return c.DateTime.Value.DateTime;
             var s = toText(c);
-            if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dt))
+            // 優先用 DateTimeOffset 解析，最後取 .DateTime 以保留原始時間（Kind=Unspecified）
+            if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
+                return dto.DateTime;
+            if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                 return dt;
             throw new FormatException($"無法解析日期時間「{s}」。");
         }
@@ -449,9 +454,9 @@ public static class Ods
             throw new FormatException($"無法解析列舉「{s}」為 {tt.Name}。");
         }
 
-        // 其他型別：最後交給 STJ 嘗試
-        var json = JsonSerializer.Serialize(c.ToString());
-        return JsonSerializer.Deserialize(json, tt);
+        // 其他型別：最後交給 Newtonsoft.Json 嘗試（以 JSON 字串進行寬鬆轉換）
+        var json = JsonConvert.SerializeObject(c.ToString());
+        return JsonConvert.DeserializeObject(json, tt);
 
         static object GetDefault(Type t) => t.IsValueType ? Activator.CreateInstance(t)! : null!;
     }

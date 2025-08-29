@@ -24,6 +24,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 將根目錄的 README.md 打包進 NuGet 套件根目錄 -->
     <None Include="../README.md" Pack="true" PackagePath="/" Link="README.md" />
   </ItemGroup>
