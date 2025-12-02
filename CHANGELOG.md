@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [2.1.0.2] - 2025-12-02
+
+### 重構
+- ODS：重構模組目錄結構與檔案配置，依職責拆分至子資料夾 (Core, Models, Enums, Options, Exceptions, Parsing, Utilities)。
+
+### 其他
+- CI：更新 GitHub Workflows 的 dotnet 版本設定。
+
 ## [2.0.0] - 2025-08-29
 
 ### 重大變更
@@ -35,6 +43,7 @@
 - README：補充 ODS 型別解析與公式相關說明。
 - Sample：更新示例程式與輸出 JSON。
 
-[Unreleased]: https://github.com/your-org/NeoFileMagic/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/your-org/NeoFileMagic/compare/v1.0.3...v2.0.0
-[0.1.0]: https://github.com/your-org/NeoFileMagic/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Benknightdark/NeoFileMagic/compare/v2.1.0.2...HEAD
+[2.1.0.2]: https://github.com/Benknightdark/NeoFileMagic/compare/v2.0.0...v2.1.0.2
+[2.0.0]: https://github.com/Benknightdark/NeoFileMagic/compare/v1.0.3...v2.0.0
+[0.1.0]: https://github.com/Benknightdark/NeoFileMagic/releases/tag/v0.1.0
