@@ -1,25 +1,26 @@
-﻿using System.Data;
+using System.Data;
 using System.Text;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Globalization;
 using NeoFileMagic.FileReader.Ods;
 
 
 public sealed class TreatmentRow
 {
-    [JsonProperty("診療項目 代碼")]
+    [JsonPropertyName("診療項目 代碼")]
     public string Code { get; set; } = null!;
-    [JsonProperty("健保支付 點數")]
+    [JsonPropertyName("健保支付 點數")]
     public string Points { get; set; } = null!;
-    [JsonProperty("生效起日")]
-    public DateTime StartDate { get; set; } 
-    [JsonProperty("生效迄日")]
-    public DateTime EndDate { get; set; } 
-    [JsonProperty("英文項目名稱")]
+    [JsonPropertyName("生效起日")]
+    public DateTime StartDate { get; set; }
+    [JsonPropertyName("生效迄日")]
+    public DateTime EndDate { get; set; }
+    [JsonPropertyName("英文項目名稱")]
     public string? EnName { get; set; } = null;
-    [JsonProperty("中文項目名稱")]
+    [JsonPropertyName("中文項目名稱")]
     public string? ZhName { get; set; } = null;
-    [JsonProperty("備註")]
+    [JsonPropertyName("備註")]
     public string? Note { get; set; } = null;
 }
 class Program
@@ -72,15 +73,15 @@ class Program
         }
 
 
-        var jsonSettings = new JsonSerializerSettings
+        var jsonSettings = new JsonSerializerOptions
         {
-            Formatting = Formatting.Indented,
-            StringEscapeHandling = StringEscapeHandling.Default
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
         var outDir = "./out";
         Directory.CreateDirectory(outDir);
         var outPath = Path.Combine(outDir, "treatment_rows.json");
-        var json = JsonConvert.SerializeObject(rows, jsonSettings);
+        var json = JsonSerializer.Serialize(rows, jsonSettings);
         await File.WriteAllTextAsync(outPath, json, new UTF8Encoding(false));
         Console.WriteLine($"已輸出 JSON：{outPath}");
 

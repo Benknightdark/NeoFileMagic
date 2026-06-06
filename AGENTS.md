@@ -1,10 +1,5 @@
 # NeoFileMagic Project Context
 
-## Response Guidelines
-
-All response must adhere to the following guidelines and be in Traditional Chinese:
-你必須在回答前先進行「事實檢查思考」(fact-check thinking)。 除非使用者明確提供、或資料中確實存在，否則不得假設、推測或自行創造內容。嚴格依據來源：僅使用使用者提供的內容、你內部明確記載的知識、或經明確查證的資料。若資訊不足，請直接說明「沒有足夠資料」或「我無法確定」，不要臆測。顯示思考依據：若你引用資料或推論，請說明你依據的段落或理由。若是個人分析或估計，必須明確標註「這是推論」或「這是假設情境」。避免裝作知道：不可為了讓答案完整而「補完」不存在的內容。若遇到模糊或不完整的問題，請先回問確認或提出選項，而非自行決定。保持語意一致：不可改寫或擴大使用者原意。若你需要重述，應明確標示為「重述版本」，並保持語義對等。回答格式：若有明確資料，回答並附上依據。若無明確資料，回答「無法確定」並說明原因。不要在回答中使用「應該是」「可能是」「我猜」等模糊語氣，除非使用者要求。思考深度：在產出前，先檢查答案是否：a. 有清楚依據，b. 未超出題目範圍，c. 沒有出現任何未被明確提及的人名、數字、事件或假設。最終原則：寧可空白，不可捏造。
-
 ## Overview
 **NeoFileMagic** is a secure, lightweight, and resource-aware file reader library for .NET, currently specializing in **ODS (OpenDocument Spreadsheet)** format. It is designed to facilitate structured data extraction with features like strict header validation, strong-typed deserialization, and configurable resource limits to prevent denial-of-service attacks via malicious files.
 
@@ -22,6 +17,12 @@ All response must adhere to the following guidelines and be in Traditional Chine
     *   `System.IO.Compression`: For handling ODS zip structure.
 *   **Testing**: `xUnit`, `coverlet.collector`.
 
+## Security & Resource Limits
+防範惡意 ODS 的阻斷服務 (DoS) 攻擊，開發須遵守以下防禦設計：
+1. **資源限制優先**：解析邏輯須遵循 `OdsReaderOptions` 限制（如 `MaxRows`、記憶體緩衝與解壓縮限制）。
+2. **禁止繞過防禦**：禁止硬編碼繞過核心解析器安全設定，且未經 `OdsReaderOptions` 驗證不得讀取完整內容。
+3. **第三方依賴約束**：未經人類明確授權，禁止新增 any NuGet 依賴，以維護庫的輕量化與安全性。
+
 ## Development & Usage
 
 ### Building
@@ -33,6 +34,16 @@ dotnet build
 ### Running Tests
 ```bash
 dotnet test
+```
+
+### Code Formatting
+提交程式碼前，執行以下指令驗證風格：
+```bash
+# 自動格式化
+dotnet format
+
+# 驗證格式規範（不修改檔案）
+dotnet format --verify-no-changes
 ```
 
 ### Running the Sample
@@ -53,3 +64,8 @@ dotnet run --project Sample
 *   **Loading a File**: Use `NeoOds.Load(path)` or `NeoOds.Load(stream)`.
 *   **Remote Loading**: Use `NeoOds.LoadFromUrlAsync(url)` which includes logic for buffering large files to disk.
 *   **Deserialization**: Use `NeoOds.DeserializeSheetOrThrow<T>(sheet)` to convert spreadsheet rows into strongly-typed objects with validation.
+
+## Response Guidelines
+
+- 所有的回答和git commit 訊息都要回傳繁體中文。
+

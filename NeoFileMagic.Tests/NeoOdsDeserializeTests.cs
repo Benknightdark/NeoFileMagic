@@ -6,7 +6,7 @@ using System.Linq;
 using System.Collections.Generic;
 using NeoFileMagic.FileReader.Ods;
 using NeoFileMagic.FileReader.Ods.Exception;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 public sealed class NeoOdsDeserializeTests
 {
@@ -82,10 +82,12 @@ public sealed class NeoOdsDeserializeTests
 
     public sealed class LocalizedRow
     {
-        [JsonProperty(PropertyName = "代碼", Order = 0)]
+        [JsonPropertyName("代碼")]
+        [JsonPropertyOrder(0)]
         public string? Code { get; set; }
 
-        [JsonProperty(PropertyName = "啟用", Order = 1)]
+        [JsonPropertyName("啟用")]
+        [JsonPropertyOrder(1)]
         public bool Enabled { get; set; }
     }
 
@@ -114,9 +116,11 @@ public sealed class NeoOdsDeserializeTests
 
     public sealed class OrderRow
     {
-        [JsonProperty(PropertyName = "A", Order = 2)]
+        [JsonPropertyName("A")]
+        [JsonPropertyOrder(2)]
         public string? A { get; set; }
-        [JsonProperty(PropertyName = "B", Order = 1)]
+        [JsonPropertyName("B")]
+        [JsonPropertyOrder(1)]
         public string? B { get; set; }
     }
 
