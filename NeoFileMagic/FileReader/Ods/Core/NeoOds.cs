@@ -1,4 +1,4 @@
-﻿namespace NeoFileMagic.FileReader.Ods;
+namespace NeoFileMagic.FileReader.Ods;
 
 using System;
 using System.Globalization;
@@ -7,7 +7,8 @@ using System.IO.Compression;
 using System.Net;
 using System.Reflection;
 using NeoFileMagic.FileReader.Ods.Exception;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 /// <summary>
 /// 讀取 ODS 檔案的進入點。
@@ -75,6 +76,12 @@ public static class NeoOds
             _ => s
         };
     }
+
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
 
     // 建議共用 HttpClient 避免 socket 耗盡
     private static readonly HttpClient s_http = new(new HttpClientHandler
@@ -208,9 +215,9 @@ public static class NeoOds
         var propMeta = props.Select(p => new
         {
             Property = p,
-            JsonName = p.GetCustomAttribute<JsonPropertyAttribute>()?.PropertyName ?? p.Name,
+            JsonName = p.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? p.Name,
             TargetType = p.PropertyType,
-            Order = p.GetCustomAttribute<JsonPropertyAttribute>()?.Order
+            Order = p.GetCustomAttribute<JsonPropertyOrderAttribute>()?.Order
         }).ToArray();
 
         // 期望順序：先依 JsonPropertyOrder，再以 MetadataToken 近似宣告順序，最後以名稱穩定排序
@@ -298,13 +305,8 @@ public static class NeoOds
 
             if (errors.Count == 0 || errors[^1].RowIndex != r)
             {
-                var json = JsonConvert.SerializeObject(dict);
-                var obj = JsonConvert.DeserializeObject<T>(json, new JsonSerializerSettings
-                {
-                    // 允許字串與數值之間做寬鬆轉換
-                    Culture = CultureInfo.InvariantCulture,
-                    DateParseHandling = DateParseHandling.DateTimeOffset
-                });
+                var json = JsonSerializer.Serialize(dict, s_jsonOptions);
+                var obj = JsonSerializer.Deserialize<T>(json, s_jsonOptions);
                 results.Add(obj!);
             }
         }
@@ -455,9 +457,9 @@ public static class NeoOds
             throw new FormatException($"無法解析列舉「{s}」為 {tt.Name}。");
         }
 
-        // 其他型別：最後交給 Newtonsoft.Json 嘗試（以 JSON 字串進行寬鬆轉換）
-        var json = JsonConvert.SerializeObject(c.ToString());
-        return JsonConvert.DeserializeObject(json, tt);
+        // 其他型別：最後交給 System.Text.Json 嘗試（以 JSON 字串進行寬鬆轉換）
+        var json = JsonSerializer.Serialize(c.ToString(), s_jsonOptions);
+        return JsonSerializer.Deserialize(json, tt, s_jsonOptions);
 
         static object GetDefault(Type t) => t.IsValueType ? Activator.CreateInstance(t)! : null!;
     }

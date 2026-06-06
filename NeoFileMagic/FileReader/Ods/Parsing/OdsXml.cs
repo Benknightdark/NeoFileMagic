@@ -182,7 +182,7 @@ internal static class OdsXml
     {
         // 目前位於 <table:table-cell>
         // 記下可能的「值屬性」以備回退
-        var officeValue     = xr.GetAttribute("value", NsOffice);
+        var officeValue = xr.GetAttribute("value", NsOffice);
         var officeDateValue = xr.GetAttribute("date-value", NsOffice);
         var officeTimeValue = xr.GetAttribute("time-value", NsOffice);
         var officeBoolValue = xr.GetAttribute("boolean-value", NsOffice);
@@ -196,43 +196,43 @@ internal static class OdsXml
         switch (officeValueType)
         {
             case "float":
-            {
-                if (double.TryParse(officeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
-                    return new OdsCell { Type = OdsValueType.Float, Number = d, Formula = formula };
-                break;
-            }
-            case "currency":
-            {
-                if (double.TryParse(officeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
-                    return new OdsCell { Type = OdsValueType.Currency, Number = d, Formula = formula };
-                break;
-            }
-            case "boolean":
-            {
-                if (bool.TryParse(officeBoolValue, out var b))
-                    return new OdsCell { Type = OdsValueType.Boolean, Boolean = b, Formula = formula };
-                break;
-            }
-            case "date":
-            {
-                if (!string.IsNullOrEmpty(officeDateValue) &&
-                    DateTimeOffset.TryParse(officeDateValue, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
-                    return new OdsCell { Type = OdsValueType.Date, DateTime = dto, Formula = formula };
-                break;
-            }
-            case "time":
-            {
-                try
                 {
-                    if (!string.IsNullOrEmpty(officeTimeValue))
-                    {
-                        var ts = System.Xml.XmlConvert.ToTimeSpan(officeTimeValue);
-                        return new OdsCell { Type = OdsValueType.Time, Time = ts, Formula = formula };
-                    }
+                    if (double.TryParse(officeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+                        return new OdsCell { Type = OdsValueType.Float, Number = d, Formula = formula };
+                    break;
                 }
-                catch { /* fall back below */ }
-                break;
-            }
+            case "currency":
+                {
+                    if (double.TryParse(officeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+                        return new OdsCell { Type = OdsValueType.Currency, Number = d, Formula = formula };
+                    break;
+                }
+            case "boolean":
+                {
+                    if (bool.TryParse(officeBoolValue, out var b))
+                        return new OdsCell { Type = OdsValueType.Boolean, Boolean = b, Formula = formula };
+                    break;
+                }
+            case "date":
+                {
+                    if (!string.IsNullOrEmpty(officeDateValue) &&
+                        DateTimeOffset.TryParse(officeDateValue, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
+                        return new OdsCell { Type = OdsValueType.Date, DateTime = dto, Formula = formula };
+                    break;
+                }
+            case "time":
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(officeTimeValue))
+                        {
+                            var ts = System.Xml.XmlConvert.ToTimeSpan(officeTimeValue);
+                            return new OdsCell { Type = OdsValueType.Time, Time = ts, Formula = formula };
+                        }
+                    }
+                    catch { /* fall back below */ }
+                    break;
+                }
             case "string":
             default:
                 break;

@@ -143,7 +143,7 @@ public sealed class OdsXmlTests
         Assert.False(string.IsNullOrWhiteSpace(json));
     }
 
-    
+
 
     /// <summary>
     /// 檢驗 manifest 中的加密標記會在預設下拋出 NotSupportedException；

@@ -2,19 +2,19 @@
 
 ![封面圖](https://raw.githubusercontent.com/Benknightdark/NeoFileMagic/refs/heads/master/images/cover.png)
 
-提供「安全、輕量、可控資源上限」的多種檔案格式讀取器，
-以支援後續應用快速擷取結構化資料（目前先提供 ODS，後續會陸續擴充其他格式）。
+安全、輕量、資源可控的 .NET 多格式檔案讀取器（目前支援 ODS）。適用於需要嚴格資源限制與資料安全驗證的結構化資料提取場景。
 
-## 專案一覽（3 個專案）
-- NeoFileMagic（類別庫）: 核心檔案讀取框架與公開 API（目前含 ODS 模組）。
-- NeoFileMagic.Tests（測試）: xUnit 測試，驗證解析正確性與安全/上限行為。
-  - 內含最小 ODS 測試檔與外部資料集連結（下載測試預設略過）。
-- Sample（範例）: 範例程式，展示如何載入 ODS 與讀取儲存格。
+## 專案架構
+- **NeoFileMagic**（類別庫）: 核心檔案讀取框架與公開 API（內含 ODS 模組）。
+- **NeoFileMagic.Tests**（測試）: xUnit 測試專案，驗證解析正確性與資源限制邊界。
+- **Sample**（範例）: 示範如何從本機或遠端載入 ODS 並進行強型別反序列化。
 
 ## 安裝
-- NuGet：`dotnet add package NeoFileMagic`
+```bash
+dotnet add package NeoFileMagic
+```
 
-## 基本使用（C#）
+## 基本使用
 ```csharp
 using NeoFileMagic.FileReader.Ods;
 
@@ -41,7 +41,7 @@ for (int r = 0; r < sheet.RowCount; r++)
     for (int c = 0; c < row.ColumnCount; c++)
     {
         var cell = row.Cells[c];
-        // 以單行輸出：換行/Tab 摺疊為空白
+        // 以單行輸出：將換行與 Tab 摺疊為單一空白
         Console.Write(NeoOds.OneLine(cell));
         Console.Write('\t');
     }
@@ -49,16 +49,16 @@ for (int r = 0; r < sheet.RowCount; r++)
 }
 ```
 
-### 2) 安全與資源上限設定
+### 2) 安全與資源限制設定
 ```csharp
 using NeoFileMagic.FileReader.Ods;
 
 var options = new OdsReaderOptions
 {
-    // 預設 true：若檔案加密則丟出 NotSupportedException
+    // 偵測到檔案加密時拋出 NotSupportedException
     ThrowOnEncrypted = true,
 
-    // 控制上限，避免惡意/異常檔案造成記憶體壓力
+    // 資源限制：避免異常或惡意檔案造成記憶體壓力 (DoS 攻擊防禦)
     MaxSheets = 64,
     MaxRowsPerSheet = 100_000,
     MaxColumnsPerRow = 256,
@@ -69,32 +69,50 @@ var options = new OdsReaderOptions
 var doc = NeoOds.Load("sample.ods", options);
 ```
 
-### 3) 以強型別模型反序列化工作表
-嚴格依表頭（或 `[JsonPropertyName]`）對應欄位，欄位順序/缺漏或格式錯誤會拋出具體例外。
-反序列化內部使用 Newtonsoft.Json 進行型別轉換。
+### 3) 強型別模型反序列化
+嚴格依表頭（或 `[JsonPropertyName]`）對應欄位，欄位順序、缺漏或格式錯誤會拋出具體例外。反序列化內部使用高效能的 `System.Text.Json` 進行。
 ```csharp
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using NeoFileMagic.FileReader.Ods;
 
 public sealed class Person
 {
-    [JsonProperty(PropertyName = "Name")] public string Name { get; set; } = string.Empty;
-    [JsonProperty(PropertyName = "Age")]  public int Age  { get; set; }
+    [JsonPropertyName("姓名")]
+    [JsonPropertyOrder(0)]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("年齡")]
+    [JsonPropertyOrder(1)]
+    public int Age { get; set; }
 }
 
 var doc = NeoOds.Load("people.ods");
 var sheet = doc.Sheets[0];
 var list = NeoOds.DeserializeSheetOrThrow<Person>(sheet);
-// list 為強型別結果，若欄位/資料不符會拋出 Ods* 相關例外
+// list 為反序列化結果。若欄位順序或型別不符會拋出 Ods* 相關例外。
 ```
 
-### 4) 從 URL 讀取（非同步）
+### 4) 從遠端 URL 載入（非同步）
 ```csharp
 using NeoFileMagic.FileReader.Ods;
 
 var doc = await NeoOds.LoadFromUrlAsync("https://example.com/data.ods");
 ```
 
-建置/測試：
-- 還原/建置：`dotnet restore`、`dotnet build NeoFileMagic -c Debug`
-- 測試：`dotnet test`
+## 開發與驗證
+
+### 1) 建置與測試
+```bash
+dotnet restore
+dotnet build
+dotnet test
+```
+
+### 2) 程式碼格式化
+```bash
+# 自動套用專案程式碼風格
+dotnet format
+
+# 驗證格式（不修改檔案）
+dotnet format --verify-no-changes
+```

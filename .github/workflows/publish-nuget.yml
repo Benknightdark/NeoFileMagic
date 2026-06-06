@@ -1,25 +1,24 @@
 name: Publish to NuGet
 
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: ''
-        required: false
+  pull_request:
+    branches:
+      - master
+    types:
+      - closed
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   pack-and-publish:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'develop'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
+          ref: master
           fetch-depth: 0
 
       - name: Setup .NET
@@ -30,20 +29,35 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      - name: Determine version
-        id: version
-        shell: bash
+      - name: Update Version in csproj
+        id: bump_version
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
-            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          current_version=$(grep -oPm1 '(?<=<Version>)[^<]+' NeoFileMagic/NeoFileMagic.csproj)
+          echo "Current version: $current_version"
+          
+          if [[ $current_version =~ ^([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)$ ]]; then
+            prefix="${BASH_REMATCH[1]}"
+            revision="${BASH_REMATCH[2]}"
+            new_revision=$((revision + 1))
+            new_version="${prefix}${new_revision}"
           else
-            ref="${GITHUB_REF#refs/tags/}"
-            version="${ref#v}"
-            echo "version=$version" >> "$GITHUB_OUTPUT"
+            new_version="${current_version}.1"
           fi
+          echo "New version: $new_version"
+          
+          sed -i "s|<Version>$current_version</Version>|<Version>$new_version</Version>|g" NeoFileMagic/NeoFileMagic.csproj
+          echo "version=$new_version" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and Push Version Bump
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add NeoFileMagic/NeoFileMagic.csproj
+          git commit -m "chore: bump version to ${{ steps.bump_version.outputs.version }} [skip ci]"
+          git push origin master
 
       - name: Build (Release)
-        run: dotnet build NeoFileMagic -c Release -p:Version=${{ steps.version.outputs.version }} --no-restore
+        run: dotnet build NeoFileMagic -c Release -p:Version=${{ steps.bump_version.outputs.version }} --no-restore
 
       - name: Test
         run: dotnet test --no-build --configuration Release
@@ -52,7 +66,7 @@ jobs:
         run: |
           dotnet pack NeoFileMagic \
             -c Release \
-            -p:PackageVersion=${{ steps.version.outputs.version }} \
+            -p:PackageVersion=${{ steps.bump_version.outputs.version }} \
             -p:ContinuousIntegrationBuild=true \
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg \
@@ -71,9 +85,19 @@ jobs:
             --api-key "$NUGET_API_KEY" \
             --source "https://api.nuget.org/v3/index.json" \
             --skip-duplicate
-          # 符號檔（snupkg）與 nuget.org 同站點
           dotnet nuget push "artifacts/*.snupkg" \
             --api-key "$NUGET_API_KEY" \
             --source "https://api.nuget.org/v3/index.json" \
             --skip-duplicate
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          new_version="${{ steps.bump_version.outputs.version }}"
+          echo "正在為 v${new_version} 建立 GitHub Release..."
+          gh release create "v${new_version}" artifacts/* \
+            --target master \
+            --title "Release v${new_version}" \
+            --notes "自動化發佈：由 PR 合併至 master 後自動產生的版本與套件。"
 
